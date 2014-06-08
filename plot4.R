@@ -1,45 +1,62 @@
-#use the sql to fetch the appropriate subset of data
-library(sqldf)
+## 1. get the raw data from the UCI website
+## http://archive.ics.uci.edu/ml/datasets/Individual+household+electric+power+consumption
+## record the date when the download happens
 if(!file.exists("data")){dir.create("data")}
-#initialize source and sql statement
+fileUrl <- "http://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip"
+download.file(fileUrl,destfile = "./data/hpc.zip")
+datedownloaded <- date()
+## 2. unzip this file
+unzip("./data/hpc.zip", exdir = "./data")
 myfile <- "./data/household_power_consumption.txt"
-mySql <- "SELECT * from file WHERE Date = '1/2/2007' OR Date = '2/2/2007'"
-#get the data with seperator ';'
-myData <- read.csv.sql(myfile,sql=mySql,sep=";")
-#format the time and date
-myData$Time <- strptime(paste(myData$Date,myData$Time),format="%d/%m/%Y %H:%M:%S")
-myData$Date <- as.Date(myData$Date, format="%d/%m/%Y")
+## 3. preprocess the raw data
+rawdata <- read.csv(myfile,
+                    sep=";",
+                    na.strings = "?",
+                    stringsAsFactors = F)
+## 4. Perform the subsetting and date/time processing
+data1 <- subset(rawdata,Date =="1/2/2007")
+data2 <- subset(rawdata,Date =="2/2/2007")
+data3 <- rbind(data1,data2)
+data3$Time <- strptime(paste(data3$Date,data3$Time),
+                       format="%d/%m/%Y %H:%M:%S")
+data3$Date <- as.Date(data3$Date, 
+                      format="%d/%m/%Y")
+
+tidydata <- data3
+## 5. writeup and store the tidy data
+write.table(tidydata,"./data/tidydata.txt")
+## 6. plot and explore
 #define a file device to output
 png(file = "plot4.png", width=480,height=480,units="px")
 #draw the curve with different attributes
 par(mar=c(5,5,1,1),mfrow=c(2,2))
-with(myData, {plot(Time, 
-                  as.numeric(Global_active_power[Global_active_power!="?"]),
+with(tidydata, {plot(Time, 
+                  Global_active_power,
                   type="l",
                   xlab="",
                   ylab="Global Active Power")
               plot(Time, 
-                   as.numeric(Voltage[Voltage!="?"]),
+                   Voltage,
                    type="l",
                    xlab="datetime",
                    ylab="Voltage")
 }
 )
-with(myData, plot(Time, 
-                  as.numeric(Sub_metering_1[Sub_metering_1!="?"]),
+with(tidydata, plot(Time, 
+                  Sub_metering_1,
                   type="l",
                   col="black",
                   xlab="",
                   ylab="Energy sub metering")
 )
 
-with(myData, lines(Time, 
-                   as.numeric(Sub_metering_2[Sub_metering_2!="?"]),
+with(tidydata, lines(Time, 
+                   Sub_metering_2,
                    col="red")
 )
 
-with(myData, lines(Time, 
-                   as.numeric(Sub_metering_3[Sub_metering_3!="?"]),
+with(tidydata, lines(Time, 
+                   Sub_metering_3,
                    col="blue")
 )
 legend("topright",
@@ -47,12 +64,10 @@ legend("topright",
        col=c("black","red","blue"),
        legend=c("Sub_metering_1","Sub_metering_2","Sub_metering_3"))
 
-with(myData, plot(Time, 
-                   as.numeric(Global_reactive_power[Global_reactive_power!="?"]),
+with(tidydata, plot(Time, 
+                   Global_reactive_power,
                    type="l",
                    xlab="datetime",
                    ylab="Global_reactive_power")
 )
-
-#close the device
 dev.off()
